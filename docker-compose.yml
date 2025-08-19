@@ -1,0 +1,40 @@
+version: "3.9"
+services:
+  web:
+    build: .
+    command: bash -c "python manage.py migrate && python manage.py collectstatic --noinput && uvicorn llm_service.asgi:application --host 0.0.0.0 --port 8000"
+    ports:
+    - "8000:8000"
+    env_file: .env
+    depends_on:
+    - redis
+    volumes:
+    - .:/app
+
+
+  worker:
+    build: .
+    command: celery -A llm_service worker -l info
+    env_file: .env
+    depends_on:
+    - web
+    - redis
+    volumes:
+    - .:/app
+
+
+  beat:
+    build: .
+    command: celery -A llm_service beat -l info
+    env_file: .env
+    depends_on:
+    - web
+    - redis
+    volumes:
+    - .:/app
+
+
+  redis:
+    image: redis:7
+    ports:
+    - "6379:6379"
